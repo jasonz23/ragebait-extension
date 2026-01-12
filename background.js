@@ -1,5 +1,14 @@
 const API_URL = "http://localhost:6767";
 const BE_API_KEY = "analyze-dev";
+const AUTH_STORAGE_KEY = "authSession";
+
+function getAuthSession() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get([AUTH_STORAGE_KEY], (result) => {
+      resolve(result[AUTH_STORAGE_KEY] || null);
+    });
+  });
+}
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log("Twitter Post Rater extension installed");
@@ -7,18 +16,32 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "clearCache") {
-    chrome.storage.local.clear(() => sendResponse({ success: true }));
+    chrome.storage.local.get(null, (items) => {
+      const keysToRemove = Object.keys(items).filter(
+        (key) => ![AUTH_STORAGE_KEY, "enabled"].includes(key)
+      );
+      chrome.storage.local.remove(keysToRemove, () =>
+        sendResponse({ success: true })
+      );
+    });
     return true;
   }
 
   if (request.action === "analyzePost") {
     (async () => {
       try {
+        const authSession = await getAuthSession();
+        if (!authSession?.accessToken) {
+          sendResponse({ error: "Not authenticated." });
+          return;
+        }
+
         const response = await fetch(`${API_URL}/analyze`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "x-api-key": BE_API_KEY,
+            Authorization: `Bearer ${authSession.accessToken}`,
           },
           body: JSON.stringify(request.payload),
         });
