@@ -4,7 +4,7 @@
   "version": "1.0",
   "description": "Rate and display ratings for Twitter posts",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtebIqtvVfwNxy/BLH1CksY2yTP3V+8KWM1dRYWQpF9vHZFPIs4U/8Xf5ZtPyQbjMwqVVq6qfEvTInDfRx9vs5DRxQjkJvT2fTA/8Q+L7KAF19ASbRByaVFHJLLme1bNZQ4HlHjd73Gj4Q/XONC/tRYvMSGRLYEhtZXhFXIMAVnsUaCETqbcidosPXWQL+ErzDAkBGcmIFyo7qVGOijP0UApYfuqITLjx2byyKUL4O00yBJBur13vieLHdCUQjai3ieDSwRvSPwdhCVaEwUHPU+6CJMkvfJDuuu26dXvP/7j1ztVsSNctt8bXKGwxOCEOEqSFddLfcbwDafWeBXwK6QIDAQAB",
-  "permissions": ["storage"],
+  "permissions": ["storage", "webRequest", "webRequestBlocking"],
   "host_permissions": [
     "https://twitter.com/*",
     "https://x.com/*",

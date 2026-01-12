@@ -321,40 +321,23 @@ function getPostId(article) {
   return null;
 }
 
-function getPostMediaUrls(article) {
-  const urls = new Set();
+async function getPostMediaUrls(postId) {
+  if (!postId) return [];
 
-  // Photos (Twitter/X usually renders <img> tags for media)
-  // We try a few selectors because X changes DOM a lot.
-  const imgCandidates = article.querySelectorAll(
-    'img[src*="twimg.com/media"], img[src*="pbs.twimg.com/media"], img[data-testid="tweetPhoto"] img, img'
-  );
+  try {
+    const response = await sendMessagePromise({
+      action: "getMediaUrls",
+      payload: { postId },
+    });
 
-  for (const img of imgCandidates) {
-    const src = img.currentSrc || img.src;
-    if (!src) continue;
-
-    // Heuristic: only keep likely media images
-    if (
-      src.includes("twimg.com/media") ||
-      src.includes("pbs.twimg.com/media")
-    ) {
-      // Strip common sizing params so backend can fetch original if desired
-      const clean = src
-        .replace(/([?&])(name|format|w|h)=[^&]+/g, "$1")
-        .replace(/[?&]$/g, "");
-      urls.add(clean);
+    if (Array.isArray(response?.mediaUrls)) {
+      return response.mediaUrls;
     }
+  } catch (err) {
+    console.warn("Failed to get media urls from background:", err);
   }
 
-  // Videos/GIFs: often there's a <video poster="..."> (poster is an image URL)
-  const videos = article.querySelectorAll("video[poster]");
-  for (const v of videos) {
-    if (v.poster) urls.add(v.poster);
-  }
-
-  // Return up to 4 media items (tweets can have 1–4 images)
-  return Array.from(urls).slice(0, 4);
+  return [];
 }
 
 // Extract post content text
@@ -501,7 +484,7 @@ async function processPost(article) {
   const content = getPostContent(article);
   if (!content) return;
 
-  const mediaUrls = getPostMediaUrls(article);
+  const mediaUrls = await getPostMediaUrls(postId);
 
   // Mark as processed
   article.dataset.ratingProcessed = "true";
