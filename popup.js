@@ -1,9 +1,57 @@
 const API_URL = "http://localhost:6767";
 const AUTH_STORAGE_KEY = "authSession";
 
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function scoreToTheme(score0to100) {
+  const s = clamp(score0to100, 0, 100);
+
+  // 0 = Hopium, 50 = Neutral, 100 = Ragebait
+  if (s <= 20) {
+    return {
+      label: "Strong Hopium",
+      dot: "#22c55e",
+      fill: "linear-gradient(90deg, #22c55e, #86efac)",
+      axis: "Hopium",
+    };
+  }
+  if (s <= 40) {
+    return {
+      label: "Mild Hopium",
+      dot: "#10b981",
+      fill: "linear-gradient(90deg, #10b981, #34d399)",
+      axis: "Hopium",
+    };
+  }
+  if (s < 60) {
+    return {
+      label: "Neutral",
+      dot: "#a3a3a3",
+      fill: "linear-gradient(90deg, #a3a3a3, #e5e5e5)",
+      axis: "Neutral",
+    };
+  }
+  if (s < 80) {
+    return {
+      label: "Rage-leaning",
+      dot: "#f59e0b",
+      fill: "linear-gradient(90deg, #f59e0b, #fbbf24)",
+      axis: "Ragebait",
+    };
+  }
+  return {
+    label: "High Ragebait",
+    dot: "#ef4444",
+    fill: "linear-gradient(90deg, #fb7185, #ef4444)",
+    axis: "Ragebait",
+  };
+}
+
 let stats = {
   postsAnalyzed: 0,
-  averageMeter: "—",
+  averageMeter: 0,
   postsRemaining: 0,
 };
 
@@ -32,9 +80,11 @@ function normalizeAuthResponse(data, fallbackEmail) {
     data?.jwtToken || data?.accessToken || data?.token || data?.jwt;
   const refreshToken =
     data?.refreshToken || data?.refresh || data?.refresh_token;
-  const user = data?.user || data?.userData || data?.profile || {
-    email: fallbackEmail,
-  };
+  const user = data?.user ||
+    data?.userData ||
+    data?.profile || {
+      email: fallbackEmail,
+    };
 
   if (!accessToken || !refreshToken) {
     throw new Error("Missing authentication tokens.");
@@ -73,8 +123,9 @@ function showStatus(message, duration = 3000) {
 function updateStatsDisplay() {
   document.getElementById("postsAnalyzed").textContent =
     stats.postsAnalyzed ?? 0;
-  document.getElementById("avgMeter").textContent =
-    stats.averageMeter ?? "—";
+  document.getElementById("avgMeter").textContent = stats?.averageMeter
+    ? scoreToTheme(Number(stats?.averageMeter) ?? 0)?.label
+    : "—";
   document.getElementById("postsRemaining").textContent =
     stats.postsRemaining ?? 0;
 }
@@ -103,9 +154,14 @@ function updateAuthUI(session) {
 
 async function refreshSession(refreshToken) {
   try {
+    authSession = await getAuthSession();
+
     const response = await fetch(`${API_URL}/auth/refresh`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authSession?.accessToken}`,
+      },
       body: JSON.stringify({ refreshToken }),
     });
 
@@ -116,6 +172,7 @@ async function refreshSession(refreshToken) {
     const data = await response.json();
     const session = normalizeAuthResponse(data, authSession?.user?.email);
     await setAuthSession(session);
+    await loadStats();
     return session;
   } catch (error) {
     await clearAuthSession();
@@ -126,6 +183,7 @@ async function refreshSession(refreshToken) {
 }
 
 async function fetchWithAuth(url, options = {}) {
+  authSession = await getAuthSession();
   if (!authSession?.accessToken) {
     throw new Error("Not authenticated");
   }
@@ -160,13 +218,15 @@ async function fetchWithAuth(url, options = {}) {
 
 async function loadStats() {
   if (!authSession) {
-    stats = { postsAnalyzed: 0, averageMeter: "—", postsRemaining: 0 };
+    stats = { postsAnalyzed: 0, averageMeter: 0, postsRemaining: 0 };
     updateStatsDisplay();
     return;
   }
 
   try {
-    const response = await fetchWithAuth(`${API_URL}/stats`, { method: "GET" });
+    const response = await fetchWithAuth(`${API_URL}/user/me/stats`, {
+      method: "GET",
+    });
 
     if (!response.ok) {
       throw new Error("Unable to load stats");
@@ -175,8 +235,8 @@ async function loadStats() {
     const data = await response.json();
     stats = {
       postsAnalyzed: data?.postsAnalyzed ?? data?.postsAnalyzedCount ?? 0,
-      averageMeter: data?.averageMeter ?? data?.avgMeter ?? "—",
-      postsRemaining: data?.postsRemaining ?? data?.remainingPosts ?? 0,
+      averageMeter: data?.averageMeter ?? data?.avgMeter ?? 0,
+      postsRemaining: data?.dailyPostsRemaining ?? data?.remainingPosts ?? 0,
     };
     updateStatsDisplay();
   } catch (error) {
@@ -244,7 +304,7 @@ async function handleSignup(event) {
 async function handleLogout() {
   await clearAuthSession();
   updateAuthUI(null);
-  stats = { postsAnalyzed: 0, averageMeter: "—", postsRemaining: 0 };
+  stats = { postsAnalyzed: 0, averageMeter: 0, postsRemaining: 0 };
   updateStatsDisplay();
   showStatus("Logged out.");
 }
@@ -253,14 +313,12 @@ function setActiveTab(tabName) {
   document.querySelectorAll(".tab-button").forEach((button) => {
     button.classList.toggle("active", button.dataset.tab === tabName);
   });
-  document.getElementById("loginForm").classList.toggle(
-    "hidden",
-    tabName !== "login"
-  );
-  document.getElementById("signupForm").classList.toggle(
-    "hidden",
-    tabName !== "signup"
-  );
+  document
+    .getElementById("loginForm")
+    .classList.toggle("hidden", tabName !== "login");
+  document
+    .getElementById("signupForm")
+    .classList.toggle("hidden", tabName !== "signup");
 }
 
 async function bootstrapAuth() {
@@ -295,23 +353,6 @@ enableToggle.addEventListener("change", (e) => {
 chrome.storage.local.get(["enabled"], (result) => {
   const enabled = result.enabled !== false;
   enableToggle.checked = enabled;
-});
-
-// Refresh ratings button
-const refreshBtn = document.getElementById("refreshBtn");
-refreshBtn.addEventListener("click", () => {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (tabs[0]) {
-      chrome.tabs.sendMessage(tabs[0].id, { action: "refreshRatings" });
-      showStatus("Refreshing ratings...");
-    }
-  });
-});
-
-// Settings button
-const settingsBtn = document.getElementById("settingsBtn");
-settingsBtn.addEventListener("click", () => {
-  chrome.runtime.openOptionsPage();
 });
 
 // Clear cache button

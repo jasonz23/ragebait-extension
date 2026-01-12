@@ -289,7 +289,7 @@ function scoreToTheme(score0to100) {
   }
   if (s < 60) {
     return {
-      label: "Neutral / Mixed",
+      label: "Neutral",
       dot: "#a3a3a3",
       fill: "linear-gradient(90deg, #a3a3a3, #e5e5e5)",
       axis: "Neutral",
