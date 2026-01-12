@@ -1,4 +1,5 @@
-const API_URL = "http://localhost:6767";
+// const API_URL = "http://localhost:6767";
+const API_URL = "https://staging-api.isthisragebait.com";
 const BE_API_KEY = "analyze-dev";
 const AUTH_STORAGE_KEY = "authSession";
 
