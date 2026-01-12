@@ -2,7 +2,26 @@
 <html>
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ragebait Radar</title>
   <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0d1a;
+      --bg-secondary: #12162a;
+      --card: rgba(255, 255, 255, 0.08);
+      --card-strong: rgba(255, 255, 255, 0.14);
+      --border: rgba(255, 255, 255, 0.16);
+      --text: #f5f7ff;
+      --muted: rgba(245, 247, 255, 0.7);
+      --accent: #7c5cff;
+      --accent-strong: #9b7bff;
+      --accent-soft: rgba(124, 92, 255, 0.25);
+      --danger: #f43f5e;
+      --success: #22c55e;
+      --shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+    }
+
     * {
       margin: 0;
       padding: 0;
@@ -10,135 +29,78 @@
     }
 
     body {
-      width: 320px;
-      padding: 16px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
+      width: 360px;
+      padding: 18px;
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, rgba(124, 92, 255, 0.35), transparent 55%),
+        linear-gradient(180deg, #0b0d1a 0%, #0c1024 100%);
+      color: var(--text);
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
     }
 
     .header {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-
-    h1 {
-      font-size: 20px;
-      font-weight: 700;
-      margin-bottom: 4px;
-    }
-
-    .subtitle {
-      font-size: 12px;
-      opacity: 0.9;
-    }
-
-    .stats {
-      background: rgba(255, 255, 255, 0.15);
-      backdrop-filter: blur(10px);
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 16px;
-    }
-
-    .stat-item {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      padding: 8px 0;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      justify-content: space-between;
     }
 
-    .stat-item:last-child {
-      border-bottom: none;
-    }
-
-    .stat-label {
-      font-size: 14px;
-      opacity: 0.9;
-    }
-
-    .stat-value {
-      font-size: 16px;
-      font-weight: 700;
-    }
-
-    .controls {
+    .title {
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 4px;
     }
 
-    button {
-      padding: 12px;
-      border: none;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
+    .title h1 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
     }
 
-    .btn-primary {
-      background: white;
-      color: #667eea;
-    }
-
-    .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    }
-
-    .btn-secondary {
-      background: rgba(255, 255, 255, 0.2);
-      color: white;
-      border: 1px solid rgba(255, 255, 255, 0.3);
-    }
-
-    .btn-secondary:hover {
-      background: rgba(255, 255, 255, 0.3);
-    }
-
-    .btn-danger {
-      background: #ef4444;
-      color: white;
-    }
-
-    .btn-danger:hover {
-      background: #dc2626;
-    }
-
-    .status {
-      margin-top: 12px;
-      padding: 10px;
-      background: rgba(255, 255, 255, 0.15);
-      border-radius: 8px;
+    .title span {
       font-size: 12px;
-      text-align: center;
-      display: none;
+      color: var(--muted);
     }
 
-    .status.show {
-      display: block;
+    .badge {
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--text);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
     }
 
-    .toggle-container {
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+    }
+
+    .toggle-row {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      padding: 12px;
-      background: rgba(255, 255, 255, 0.15);
-      border-radius: 8px;
-      margin-bottom: 16px;
+      justify-content: space-between;
+      gap: 12px;
     }
 
-    .toggle-label {
-      font-size: 14px;
+    .toggle-row span {
+      font-size: 13px;
+      color: var(--muted);
     }
 
     .toggle-switch {
       position: relative;
-      width: 48px;
+      width: 44px;
       height: 24px;
     }
 
@@ -155,9 +117,10 @@
       left: 0;
       right: 0;
       bottom: 0;
-      background-color: rgba(255, 255, 255, 0.3);
-      transition: 0.3s;
-      border-radius: 24px;
+      background-color: rgba(255, 255, 255, 0.2);
+      transition: 0.2s;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
     }
 
     .slider:before {
@@ -166,69 +129,257 @@
       height: 18px;
       width: 18px;
       left: 3px;
-      bottom: 3px;
+      bottom: 2px;
       background-color: white;
-      transition: 0.3s;
+      transition: 0.2s;
       border-radius: 50%;
     }
 
     input:checked + .slider {
-      background-color: #10b981;
+      background-color: rgba(34, 197, 94, 0.4);
+      border-color: rgba(34, 197, 94, 0.6);
     }
 
     input:checked + .slider:before {
-      transform: translateX(24px);
+      transform: translateX(20px);
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      background: var(--card-strong);
+      padding: 4px;
+      border-radius: 999px;
+    }
+
+    .tab-button {
+      flex: 1;
+      padding: 8px;
+      border: none;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .tab-button.active {
+      background: rgba(255, 255, 255, 0.14);
+      color: var(--text);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+    }
+
+    .form {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .form label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+
+    .form input {
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(10, 14, 30, 0.6);
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .form input::placeholder {
+      color: rgba(255, 255, 255, 0.45);
+    }
+
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    button {
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: none;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      color: white;
+      box-shadow: 0 10px 20px rgba(124, 92, 255, 0.35);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.14);
+      color: var(--text);
+    }
+
+    .btn-danger {
+      background: rgba(244, 63, 94, 0.16);
+      color: #fecdd3;
+      border: 1px solid rgba(244, 63, 94, 0.4);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .stat {
+      padding: 12px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .stat h3 {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .stat span {
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .stat-wide {
+      grid-column: span 2;
+    }
+
+    .status {
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center;
+      display: none;
+      margin-top: 6px;
+    }
+
+    .status.show {
+      display: block;
+    }
+
+    .footer-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .hidden {
+      display: none !important;
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>🎯 Twitter Post Rater</h1>
-    <p class="subtitle">Rating posts on your timeline</p>
+  <div class="container">
+    <div class="header">
+      <div class="title">
+        <h1>Ragebait Radar</h1>
+        <span>Track hype, hopium, and neutral vibes</span>
+      </div>
+      <span class="badge">LIVE</span>
+    </div>
+
+    <div class="card">
+      <div class="toggle-row">
+        <span>Extension Enabled</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="enableToggle" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="card" id="authCard">
+      <div id="authForms">
+        <div class="tabs">
+          <button class="tab-button active" data-tab="login">Log In</button>
+          <button class="tab-button" data-tab="signup">Sign Up</button>
+        </div>
+
+        <form class="form" id="loginForm">
+          <div>
+            <label for="loginEmail">Email</label>
+            <input type="email" id="loginEmail" placeholder="you@email.com" required>
+          </div>
+          <div>
+            <label for="loginPassword">Password</label>
+            <input type="password" id="loginPassword" placeholder="••••••••" required>
+          </div>
+          <button class="btn-primary" type="submit">Log In</button>
+        </form>
+
+        <form class="form hidden" id="signupForm">
+          <div>
+            <label for="signupUsername">Username</label>
+            <input type="text" id="signupUsername" placeholder="ragebaitslayer" required>
+          </div>
+          <div>
+            <label for="signupEmail">Email</label>
+            <input type="email" id="signupEmail" placeholder="you@email.com" required>
+          </div>
+          <div>
+            <label for="signupPassword">Password</label>
+            <input type="password" id="signupPassword" placeholder="••••••••" required>
+          </div>
+          <button class="btn-primary" type="submit">Create Account</button>
+        </form>
+      </div>
+
+      <div id="signedIn" class="hidden">
+        <div class="actions">
+          <div>
+            <h3 style="font-size: 14px; margin-bottom: 4px;">Signed in</h3>
+            <p style="font-size: 12px; color: var(--muted);" id="userLabel">—</p>
+          </div>
+          <button class="btn-danger" id="logoutBtn">Log out</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card hidden" id="statsCard">
+      <div class="stats-grid">
+        <div class="stat">
+          <h3>Posts analyzed</h3>
+          <span id="postsAnalyzed">0</span>
+        </div>
+        <div class="stat">
+          <h3>Avg meter</h3>
+          <span id="avgMeter">—</span>
+        </div>
+        <div class="stat stat-wide">
+          <h3>Posts left</h3>
+          <span id="postsRemaining">0</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="footer-actions">
+        <button class="btn-primary" id="refreshBtn">Refresh Ratings</button>
+        <button class="btn-secondary" id="settingsBtn">Settings</button>
+        <button class="btn-secondary" id="clearBtn">Clear Cache</button>
+      </div>
+      <div class="status" id="statusMsg"></div>
+    </div>
   </div>
-
-  <div class="toggle-container">
-    <span class="toggle-label">Extension Enabled</span>
-    <label class="toggle-switch">
-      <input type="checkbox" id="enableToggle" checked>
-      <span class="slider"></span>
-    </label>
-  </div>
-
-  <div class="stats" id="authCard">
-    <div class="stat-item">
-        <span class="stat-label" id="authStatus">Not logged in</span>
-        <span class="stat-value" id="userLabel">—</span>
-    </div>
-
-    <div class="controls" style="margin-top: 12px;">
-        <button class="btn-primary" id="loginBtn">Login</button>
-        <button class="btn-secondary" id="logoutBtn" style="display:none;">Logout</button>
-    </div>
-</div>
-
-  <div class="stats" style="display:none;">
-    <div class="stat-item">
-      <span class="stat-label">Posts Rated</span>
-      <span class="stat-value" id="postsRated">0</span>
-    </div>
-    <div class="stat-item">
-      <span class="stat-label">Avg Rating</span>
-      <span class="stat-value" id="avgRating">-</span>
-    </div>
-    <div class="stat-item">
-      <span class="stat-label">Cache Size</span>
-      <span class="stat-value" id="cacheSize">0</span>
-    </div>
-  </div>
-
-  <div class="controls">
-    <button class="btn-primary" id="refreshBtn">Refresh Ratings</button>
-    <button class="btn-secondary" id="settingsBtn">Settings</button>
-    <button class="btn-danger" id="clearBtn">Clear Cache</button>
-  </div>
-
-  <div class="status" id="statusMsg"></div>
 
   <script src="popup.js"></script>
 </body>

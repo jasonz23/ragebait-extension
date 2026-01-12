@@ -1,56 +1,286 @@
+const API_URL = "http://localhost:6767";
+const AUTH_STORAGE_KEY = "authSession";
+
 let stats = {
-  postsRated: 0,
-  totalRating: 0,
-  cacheSize: 0,
+  postsAnalyzed: 0,
+  averageMeter: "—",
+  postsRemaining: 0,
 };
 
-// Load stats from storage
-function loadStats() {
-  chrome.storage.local.get(["stats"], (result) => {
-    if (result.stats) {
-      stats = result.stats;
-      updateDisplay();
-    }
-  });
+let authSession = null;
 
-  // Get cache size
-  chrome.storage.local.get(null, (items) => {
-    stats.cacheSize = Object.keys(items).length - 1; // -1 for stats object
-    updateDisplay();
+function storageGet(keys) {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(keys, resolve);
   });
 }
 
-// Update display
-function updateDisplay() {
-  document.getElementById("postsRated").textContent = stats.postsRated;
-
-  const avgRating =
-    stats.postsRated > 0
-      ? (stats.totalRating / stats.postsRated).toFixed(1)
-      : "-";
-  document.getElementById("avgRating").textContent = avgRating;
-
-  document.getElementById("cacheSize").textContent = stats.cacheSize;
+function storageSet(payload) {
+  return new Promise((resolve) => {
+    chrome.storage.local.set(payload, resolve);
+  });
 }
 
-// Show status message
+function storageRemove(keys) {
+  return new Promise((resolve) => {
+    chrome.storage.local.remove(keys, resolve);
+  });
+}
+
+function normalizeAuthResponse(data, fallbackEmail) {
+  const accessToken =
+    data?.jwtToken || data?.accessToken || data?.token || data?.jwt;
+  const refreshToken =
+    data?.refreshToken || data?.refresh || data?.refresh_token;
+  const user = data?.user || data?.userData || data?.profile || {
+    email: fallbackEmail,
+  };
+
+  if (!accessToken || !refreshToken) {
+    throw new Error("Missing authentication tokens.");
+  }
+
+  return { accessToken, refreshToken, user };
+}
+
+async function getAuthSession() {
+  const result = await storageGet([AUTH_STORAGE_KEY]);
+  return result[AUTH_STORAGE_KEY] || null;
+}
+
+async function setAuthSession(session) {
+  authSession = session;
+  await storageSet({ [AUTH_STORAGE_KEY]: session });
+}
+
+async function clearAuthSession() {
+  authSession = null;
+  await storageRemove([AUTH_STORAGE_KEY]);
+}
+
 function showStatus(message, duration = 3000) {
   const statusEl = document.getElementById("statusMsg");
   statusEl.textContent = message;
   statusEl.classList.add("show");
 
-  setTimeout(() => {
-    statusEl.classList.remove("show");
-  }, duration);
+  if (duration) {
+    setTimeout(() => {
+      statusEl.classList.remove("show");
+    }, duration);
+  }
+}
+
+function updateStatsDisplay() {
+  document.getElementById("postsAnalyzed").textContent =
+    stats.postsAnalyzed ?? 0;
+  document.getElementById("avgMeter").textContent =
+    stats.averageMeter ?? "—";
+  document.getElementById("postsRemaining").textContent =
+    stats.postsRemaining ?? 0;
+}
+
+function updateAuthUI(session) {
+  const authForms = document.getElementById("authForms");
+  const signedIn = document.getElementById("signedIn");
+  const statsCard = document.getElementById("statsCard");
+  const userLabel = document.getElementById("userLabel");
+
+  if (session) {
+    authForms.classList.add("hidden");
+    signedIn.classList.remove("hidden");
+    statsCard.classList.remove("hidden");
+
+    const displayName =
+      session.user?.username || session.user?.name || session.user?.email || "";
+    userLabel.textContent = displayName ? `@${displayName}` : "Signed in";
+  } else {
+    authForms.classList.remove("hidden");
+    signedIn.classList.add("hidden");
+    statsCard.classList.add("hidden");
+    userLabel.textContent = "—";
+  }
+}
+
+async function refreshSession(refreshToken) {
+  try {
+    const response = await fetch(`${API_URL}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Refresh failed");
+    }
+
+    const data = await response.json();
+    const session = normalizeAuthResponse(data, authSession?.user?.email);
+    await setAuthSession(session);
+    return session;
+  } catch (error) {
+    await clearAuthSession();
+    updateAuthUI(null);
+    showStatus("Session expired. Please log in again.");
+    return null;
+  }
+}
+
+async function fetchWithAuth(url, options = {}) {
+  if (!authSession?.accessToken) {
+    throw new Error("Not authenticated");
+  }
+
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${authSession.accessToken}`,
+      ...(options.headers || {}),
+    },
+  });
+
+  if (response.status === 401 && authSession?.refreshToken) {
+    const refreshed = await refreshSession(authSession.refreshToken);
+    if (!refreshed) {
+      throw new Error("Session expired");
+    }
+
+    return fetch(url, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${refreshed.accessToken}`,
+        ...(options.headers || {}),
+      },
+    });
+  }
+
+  return response;
+}
+
+async function loadStats() {
+  if (!authSession) {
+    stats = { postsAnalyzed: 0, averageMeter: "—", postsRemaining: 0 };
+    updateStatsDisplay();
+    return;
+  }
+
+  try {
+    const response = await fetchWithAuth(`${API_URL}/stats`, { method: "GET" });
+
+    if (!response.ok) {
+      throw new Error("Unable to load stats");
+    }
+
+    const data = await response.json();
+    stats = {
+      postsAnalyzed: data?.postsAnalyzed ?? data?.postsAnalyzedCount ?? 0,
+      averageMeter: data?.averageMeter ?? data?.avgMeter ?? "—",
+      postsRemaining: data?.postsRemaining ?? data?.remainingPosts ?? 0,
+    };
+    updateStatsDisplay();
+  } catch (error) {
+    showStatus("Unable to load stats.");
+  }
+}
+
+async function handleLogin(event) {
+  event.preventDefault();
+  const email = document.getElementById("loginEmail").value.trim();
+  const password = document.getElementById("loginPassword").value.trim();
+
+  try {
+    const response = await fetch(`${API_URL}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!response.ok) {
+      const errorMessage = await response.text();
+      throw new Error(errorMessage || "Login failed");
+    }
+
+    const data = await response.json();
+    const session = normalizeAuthResponse(data, email);
+    await setAuthSession(session);
+    updateAuthUI(session);
+    await loadStats();
+    showStatus("Welcome back!");
+  } catch (error) {
+    showStatus(error.message || "Login failed");
+  }
+}
+
+async function handleSignup(event) {
+  event.preventDefault();
+  const username = document.getElementById("signupUsername").value.trim();
+  const email = document.getElementById("signupEmail").value.trim();
+  const password = document.getElementById("signupPassword").value.trim();
+
+  try {
+    const response = await fetch(`${API_URL}/auth/signup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, email, password }),
+    });
+
+    if (!response.ok) {
+      const errorMessage = await response.text();
+      throw new Error(errorMessage || "Signup failed");
+    }
+
+    const data = await response.json();
+    const session = normalizeAuthResponse(data, email);
+    await setAuthSession(session);
+    updateAuthUI(session);
+    await loadStats();
+    showStatus("Account created!");
+  } catch (error) {
+    showStatus(error.message || "Signup failed");
+  }
+}
+
+async function handleLogout() {
+  await clearAuthSession();
+  updateAuthUI(null);
+  stats = { postsAnalyzed: 0, averageMeter: "—", postsRemaining: 0 };
+  updateStatsDisplay();
+  showStatus("Logged out.");
+}
+
+function setActiveTab(tabName) {
+  document.querySelectorAll(".tab-button").forEach((button) => {
+    button.classList.toggle("active", button.dataset.tab === tabName);
+  });
+  document.getElementById("loginForm").classList.toggle(
+    "hidden",
+    tabName !== "login"
+  );
+  document.getElementById("signupForm").classList.toggle(
+    "hidden",
+    tabName !== "signup"
+  );
+}
+
+async function bootstrapAuth() {
+  authSession = await getAuthSession();
+  if (authSession?.refreshToken) {
+    const refreshed = await refreshSession(authSession.refreshToken);
+    authSession = refreshed || null;
+  }
+
+  updateAuthUI(authSession);
+  await loadStats();
 }
 
 // Enable/disable toggle
-document.getElementById("enableToggle").addEventListener("change", (e) => {
+const enableToggle = document.getElementById("enableToggle");
+enableToggle.addEventListener("change", (e) => {
   const enabled = e.target.checked;
   chrome.storage.local.set({ enabled }, () => {
     showStatus(enabled ? "Extension enabled" : "Extension disabled");
 
-    // Notify content script
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]) {
         chrome.tabs.sendMessage(tabs[0].id, {
@@ -62,14 +292,14 @@ document.getElementById("enableToggle").addEventListener("change", (e) => {
   });
 });
 
-// Load enabled state
 chrome.storage.local.get(["enabled"], (result) => {
-  const enabled = result.enabled !== false; // Default to true
-  document.getElementById("enableToggle").checked = enabled;
+  const enabled = result.enabled !== false;
+  enableToggle.checked = enabled;
 });
 
 // Refresh ratings button
-document.getElementById("refreshBtn").addEventListener("click", () => {
+const refreshBtn = document.getElementById("refreshBtn");
+refreshBtn.addEventListener("click", () => {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs[0]) {
       chrome.tabs.sendMessage(tabs[0].id, { action: "refreshRatings" });
@@ -79,27 +309,45 @@ document.getElementById("refreshBtn").addEventListener("click", () => {
 });
 
 // Settings button
-document.getElementById("settingsBtn").addEventListener("click", () => {
+const settingsBtn = document.getElementById("settingsBtn");
+settingsBtn.addEventListener("click", () => {
   chrome.runtime.openOptionsPage();
 });
 
 // Clear cache button
-document.getElementById("clearBtn").addEventListener("click", () => {
+const clearBtn = document.getElementById("clearBtn");
+clearBtn.addEventListener("click", () => {
   if (confirm("Clear all cached ratings?")) {
-    chrome.storage.local.clear(() => {
-      stats = { postsRated: 0, totalRating: 0, cacheSize: 0 };
-      updateDisplay();
-      showStatus("Cache cleared!");
+    chrome.storage.local.get(null, (items) => {
+      const keysToRemove = Object.keys(items).filter(
+        (key) => ![AUTH_STORAGE_KEY, "enabled"].includes(key)
+      );
 
-      // Notify content script
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs[0]) {
-          chrome.tabs.sendMessage(tabs[0].id, { action: "clearCache" });
-        }
+      chrome.storage.local.remove(keysToRemove, () => {
+        showStatus("Cache cleared!");
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs[0]) {
+            chrome.tabs.sendMessage(tabs[0].id, { action: "clearCache" });
+          }
+        });
       });
     });
   }
 });
 
+// Auth forms
+const loginForm = document.getElementById("loginForm");
+const signupForm = document.getElementById("signupForm");
+const logoutBtn = document.getElementById("logoutBtn");
+
+loginForm.addEventListener("submit", handleLogin);
+signupForm.addEventListener("submit", handleSignup);
+logoutBtn.addEventListener("click", handleLogout);
+
+document.querySelectorAll(".tab-button").forEach((button) => {
+  button.addEventListener("click", () => setActiveTab(button.dataset.tab));
+});
+
 // Initialize
-loadStats();
+setActiveTab("login");
+bootstrapAuth();
