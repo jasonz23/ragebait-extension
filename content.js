@@ -322,39 +322,7 @@ function getPostId(article) {
 }
 
 function getPostMediaUrls(article) {
-  const urls = new Set();
-
-  // Photos (Twitter/X usually renders <img> tags for media)
-  // We try a few selectors because X changes DOM a lot.
-  const imgCandidates = article.querySelectorAll(
-    'img[src*="twimg.com/media"], img[src*="pbs.twimg.com/media"], img[data-testid="tweetPhoto"] img, img'
-  );
-
-  for (const img of imgCandidates) {
-    const src = img.currentSrc || img.src;
-    if (!src) continue;
-
-    // Heuristic: only keep likely media images
-    if (
-      src.includes("twimg.com/media") ||
-      src.includes("pbs.twimg.com/media")
-    ) {
-      // Strip common sizing params so backend can fetch original if desired
-      const clean = src
-        .replace(/([?&])(name|format|w|h)=[^&]+/g, "$1")
-        .replace(/[?&]$/g, "");
-      urls.add(clean);
-    }
-  }
-
-  // Videos/GIFs: often there's a <video poster="..."> (poster is an image URL)
-  const videos = article.querySelectorAll("video[poster]");
-  for (const v of videos) {
-    if (v.poster) urls.add(v.poster);
-  }
-
-  // Return up to 4 media items (tweets can have 1–4 images)
-  return Array.from(urls).slice(0, 4);
+  return [];
 }
 
 // Extract post content text
