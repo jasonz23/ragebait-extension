@@ -7,7 +7,7 @@
   "host_permissions": [
     "https://twitter.com/*",
     "https://x.com/*",
-    "http://localhost:6767/*"
+    "https://staging-api.isthisragebait.com/*"
   ],
   "content_scripts": [
     {
