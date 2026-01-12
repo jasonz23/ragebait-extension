@@ -1,4 +1,5 @@
 // API endpoint - replace with your backend URL
+// const API_URL = "https://staging-api.isthisragebait.com";
 const API_URL = "http://localhost:6767";
 
 // Cache for ratings to avoid redundant API calls
