@@ -2,11 +2,20 @@
 const API_URL = "https://staging-api.isthisragebait.com";
 const BE_API_KEY = "analyze-dev";
 const AUTH_STORAGE_KEY = "authSession";
+const ENABLED_STORAGE_KEY = "enabled";
 
 function getAuthSession() {
   return new Promise((resolve) => {
     chrome.storage.local.get([AUTH_STORAGE_KEY], (result) => {
       resolve(result[AUTH_STORAGE_KEY] || null);
+    });
+  });
+}
+
+function getExtensionEnabled() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get([ENABLED_STORAGE_KEY], (result) => {
+      resolve(result[ENABLED_STORAGE_KEY] !== false);
     });
   });
 }
@@ -19,10 +28,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "clearCache") {
     chrome.storage.local.get(null, (items) => {
       const keysToRemove = Object.keys(items).filter(
-        (key) => ![AUTH_STORAGE_KEY, "enabled"].includes(key)
+        (key) => ![AUTH_STORAGE_KEY, "enabled"].includes(key),
       );
       chrome.storage.local.remove(keysToRemove, () =>
-        sendResponse({ success: true })
+        sendResponse({ success: true }),
       );
     });
     return true;
@@ -31,6 +40,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "analyzePost") {
     (async () => {
       try {
+        const enabled = await getExtensionEnabled();
+        if (!enabled) {
+          sendResponse({ error: "Extension disabled." });
+          return;
+        }
+
         const authSession = await getAuthSession();
         if (!authSession?.accessToken) {
           sendResponse({ error: "Not authenticated." });
@@ -50,7 +65,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (!response.ok) {
           const text = await response.text().catch(() => "");
           throw new Error(
-            `API ${response.status}: ${text || "Request failed"}`
+            `API ${response.status}: ${text || "Request failed"}`,
           );
         }
 

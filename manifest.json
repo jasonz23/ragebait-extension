@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Twitter Post Rater",
-  "version": "1.0",
+  "version": "1.1",
   "description": "Rate and display ratings for Twitter posts",
   "permissions": ["storage"],
   "host_permissions": [

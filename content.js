@@ -1,9 +1,11 @@
 // API endpoint - replace with your backend URL
 const API_URL = "https://staging-api.isthisragebait.com";
 // const API_URL = "http://localhost:6767";
+const ENABLED_STORAGE_KEY = "enabled";
 
 // Cache for ratings to avoid redundant API calls
 const ratingCache = new Map();
+let extensionEnabled = true;
 
 // --- tiny style injection (only once) ---
 function injectStylesOnce() {
@@ -343,8 +345,17 @@ function sendMessagePromise(message) {
   });
 }
 
+function getExtensionEnabled() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get([ENABLED_STORAGE_KEY], (result) => {
+      resolve(result[ENABLED_STORAGE_KEY] !== false);
+    });
+  });
+}
+
 // Get rating from backend API (via background)
 async function getRating(postId, content, mediaUrls = []) {
+  if (!extensionEnabled) return null;
   if (ratingCache.has(postId)) return ratingCache.get(postId);
 
   try {
@@ -398,8 +409,8 @@ function createRatingBadge({ rageBaitScore, analysis, accuracyScore }) {
     accNorm === "High"
       ? { label: "High", dot: "#10b981" }
       : accNorm === "Medium"
-      ? { label: "Medium", dot: "#f59e0b" }
-      : { label: "Low", dot: "#ef4444" };
+        ? { label: "Medium", dot: "#f59e0b" }
+        : { label: "Low", dot: "#ef4444" };
 
   badge.innerHTML = `
   <div class="rbx-row-top">
@@ -408,7 +419,7 @@ function createRatingBadge({ rageBaitScore, analysis, accuracyScore }) {
       <div class="rbx-title">
         <span class="rbx-label">Framing</span>
         <span class="rbx-score"><strong>${score.toFixed(
-          0
+          0,
         )}</strong><span>/100</span></span>
       </div>
     </div>
@@ -461,6 +472,7 @@ function createLoadingBadge() {
 
 // Process a single post
 async function processPost(article) {
+  if (!extensionEnabled) return;
   // Skip if already processed
   if (article.dataset.ratingProcessed) return;
 
@@ -510,6 +522,7 @@ async function processPost(article) {
 // Observe DOM changes to process new posts
 function observePosts() {
   const observer = new MutationObserver(() => {
+    if (!extensionEnabled) return;
     const articles = document.querySelectorAll('article[data-testid="tweet"]');
     articles.forEach((article) => processPost(article));
   });
@@ -517,13 +530,34 @@ function observePosts() {
   observer.observe(document.body, { childList: true, subtree: true });
 
   // Process existing posts
+  if (!extensionEnabled) return;
   const articles = document.querySelectorAll('article[data-testid="tweet"]');
   articles.forEach((article) => processPost(article));
 }
 
+function processExistingPosts() {
+  const articles = document.querySelectorAll('article[data-testid="tweet"]');
+  articles.forEach((article) => processPost(article));
+}
+
+chrome.runtime.onMessage.addListener((request) => {
+  if (request.action === "toggleExtension") {
+    extensionEnabled = Boolean(request.enabled);
+    if (extensionEnabled) {
+      processExistingPosts();
+    }
+  }
+});
+
 // Initialize when page loads
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", observePosts);
+  document.addEventListener("DOMContentLoaded", async () => {
+    extensionEnabled = await getExtensionEnabled();
+    observePosts();
+  });
 } else {
-  observePosts();
+  getExtensionEnabled().then((enabled) => {
+    extensionEnabled = enabled;
+    observePosts();
+  });
 }
