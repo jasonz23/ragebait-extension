@@ -53,6 +53,7 @@ function scoreToTheme(score0to100) {
 let stats = {
   postsAnalyzed: 0,
   averageMeter: 0,
+  averageAiLevel: 0,
   postsRemaining: 0,
 };
 
@@ -126,6 +127,21 @@ function updateStatsDisplay() {
     stats.postsAnalyzed ?? 0;
   document.getElementById("avgMeter").textContent = stats?.averageMeter
     ? scoreToTheme(Number(stats?.averageMeter) ?? 0)?.label
+    : "—";
+  let aiLabel = "AI Slop";
+  if (stats?.averageAiLevel < 2) {
+    aiLabel = "Human";
+  } else if (stats?.averageAiLevel < 4) {
+    aiLabel = "Mostly Human";
+  } else if (stats?.averageAiLevel < 6) {
+    aiLabel = "Mixed";
+  } else if (stats?.averageAiLevel < 8) {
+    aiLabel = "Mostly AI";
+  } else {
+    aiLabel = "AI Slop";
+  }
+  document.getElementById("avgAIMeter").textContent = stats?.averageMeter
+    ? `${aiLabel}`
     : "—";
   document.getElementById("postsRemaining").textContent =
     stats.postsRemaining ?? 0;
@@ -219,7 +235,12 @@ async function fetchWithAuth(url, options = {}) {
 
 async function loadStats() {
   if (!authSession) {
-    stats = { postsAnalyzed: 0, averageMeter: 0, postsRemaining: 0 };
+    stats = {
+      postsAnalyzed: 0,
+      averageMeter: 0,
+      postsRemaining: 0,
+      averageAiLevel: 0,
+    };
     updateStatsDisplay();
     return;
   }
@@ -238,6 +259,7 @@ async function loadStats() {
       postsAnalyzed: data?.postsAnalyzed ?? data?.postsAnalyzedCount ?? 0,
       averageMeter: data?.averageMeter ?? data?.avgMeter ?? 0,
       postsRemaining: data?.dailyPostsRemaining ?? data?.remainingPosts ?? 0,
+      averageAiLevel: data?.averageAiLevel ?? 0,
     };
     updateStatsDisplay();
   } catch (error) {
@@ -362,7 +384,7 @@ clearBtn.addEventListener("click", () => {
   if (confirm("Clear all cached ratings?")) {
     chrome.storage.local.get(null, (items) => {
       const keysToRemove = Object.keys(items).filter(
-        (key) => ![AUTH_STORAGE_KEY, "enabled"].includes(key)
+        (key) => ![AUTH_STORAGE_KEY, "enabled"].includes(key),
       );
 
       chrome.storage.local.remove(keysToRemove, () => {

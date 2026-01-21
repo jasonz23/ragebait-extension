@@ -75,6 +75,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           rageBaitScore: data?.rageBaitScore ?? 0,
           analysis: data?.analysis ?? "",
           accuracyScore: data?.accuracyScore ?? "Low",
+          aiLevel: data?.aiLevel ?? 1,
         });
       } catch (err) {
         sendResponse({ error: String(err?.message || err) });

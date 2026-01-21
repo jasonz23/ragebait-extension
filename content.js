@@ -22,7 +22,6 @@ function injectStylesOnce() {
       flex-direction: column;
       gap: 8px;
 
-      padding: 10px 12px;
       border-radius: 14px;
 
       border: 1px solid rgba(255,255,255,0.10);
@@ -35,19 +34,25 @@ function injectStylesOnce() {
       user-select: none;
       pointer-events: auto;
 
-      width: fit-content;
+      width: 100%;
       max-width: min(680px, 100%);
+      box-sizing: border-box;
+      padding: 8px;
     }
 
     .rbx-row-top {
       display: flex;
       align-items: center;
       gap: 10px;
+      flex-direction: column;
+      width: 100%;
     }
 
     .rbx-row-bottom {
       display: flex;
       align-items: center;
+      justify-content: space-between;
+      width: 100%;
       gap: 10px;
       min-width: 0; /* allows ellipsis */
     }
@@ -84,6 +89,13 @@ function injectStylesOnce() {
       opacity: 0.75;
     }
 
+    .ragebait-label {
+      display: flex;
+      width: 100%;
+      justify-content: space-between;
+      align-items: center;
+    }
+
     .rbx-score {
       font-size: 14px;
       font-weight: 700;
@@ -108,7 +120,7 @@ function injectStylesOnce() {
 
     .rbx-signal .rbx-label { font-size: 10px; }
     .rbx-signal .rbx-signal-text {
-      font-size: 12px;
+      font-size: 10px;
       font-weight: 750;
       color: rgba(255,255,255,0.92);
     }
@@ -117,6 +129,7 @@ function injectStylesOnce() {
       position: relative;
       flex: 1 1 auto;
       min-width: 140px;
+      width: 100%;
       height: 9px;
       border-radius: 999px;
       overflow: hidden;
@@ -182,11 +195,11 @@ function injectStylesOnce() {
 
     /* place it nicely above action bar */
     .rbx-wrap {
+      margin-top: 8px;
       display: flex;
       align-items: center;
       justify-content: flex-start;
-      margin: 6px 0 10px 0;
-      overflow: visible;
+      width:100%;
     }
 
     .rbx-tooltip {
@@ -372,8 +385,9 @@ async function getRating(postId, content, mediaUrls = []) {
     const analysis = typeof res.analysis === "string" ? res.analysis : "";
     const accuracyScore =
       typeof res.accuracyScore === "string" ? res.accuracyScore : "Low";
+    const aiLevel = typeof res.aiLevel === "number" ? res.aiLevel : 1;
 
-    const payload = { rageBaitScore, analysis, accuracyScore };
+    const payload = { rageBaitScore, analysis, accuracyScore, aiLevel };
     ratingCache.set(postId, payload);
 
     return payload;
@@ -384,7 +398,12 @@ async function getRating(postId, content, mediaUrls = []) {
 }
 
 // Create and inject rating badge (cooler, matches API)
-function createRatingBadge({ rageBaitScore, analysis, accuracyScore }) {
+function createRatingBadge({
+  rageBaitScore,
+  analysis,
+  accuracyScore,
+  aiLevel,
+}) {
   injectStylesOnce();
 
   const score = clamp(rageBaitScore ?? 0, 0, 100);
@@ -407,23 +426,30 @@ function createRatingBadge({ rageBaitScore, analysis, accuracyScore }) {
 
   const accTheme =
     accNorm === "High"
-      ? { label: "High", dot: "#10b981" }
+      ? { label: "Accurate", dot: "#10b981" }
       : accNorm === "Medium"
-        ? { label: "Medium", dot: "#f59e0b" }
-        : { label: "Low", dot: "#ef4444" };
+        ? { label: "Kinda", dot: "#f59e0b" }
+        : { label: "Inaccurate", dot: "#ef4444" };
+  let aiLabel = "AI Slop";
+  if (aiLevel == 1) {
+    aiLabel = "Human Text";
+  } else if (aiLevel < 3) {
+    aiLabel = "Mostly Human";
+  } else if (aiLevel < 6) {
+    aiLabel = "Mixed AI";
+  } else if (aiLevel < 9) {
+    aiLabel = "Mostly AI";
+  } else {
+    aiLabel = "AI Slop";
+  }
 
   badge.innerHTML = `
   <div class="rbx-row-top">
-    <div class="rbx-chip">
-      <span class="rbx-dot" style="background:${theme.dot};"></span>
-      <div class="rbx-title">
-        <span class="rbx-label">Framing</span>
-        <span class="rbx-score"><strong>${score.toFixed(
-          0,
-        )}</strong><span>/100</span></span>
-      </div>
+    <div class="ragebait-label">
+      <span style="font-weight: bold;">Hopium</span>
+      <span style="font-weight: bold;">Neutral</span>
+      <span style="font-weight: bold;">Ragebait</span>
     </div>
-
     <div class="rbx-bar" aria-label="ragebait score bar">
       <span style="background:${theme.fill}; width:${score}%;"></span>
     </div>
@@ -431,7 +457,7 @@ function createRatingBadge({ rageBaitScore, analysis, accuracyScore }) {
 
   <div class="rbx-row-bottom">
     <div class="rbx-signal">
-      <span class="rbx-label">Axis</span>
+      <span class="rbx-label">Ragebait Meter</span>
       <span class="rbx-signal-text">${theme.axis} — ${theme.label}</span>
     </div>
 
@@ -439,14 +465,12 @@ function createRatingBadge({ rageBaitScore, analysis, accuracyScore }) {
       <span class="rbx-dot" style="width:7px;height:7px;background:${
         accTheme.dot
       };"></span>
-      <span>Accuracy: ${accTheme.label}</span>
+      <span>Fact Check: ${accTheme.label}</span>
     </div>
 
-    ${
-      analysisText
-        ? `<div class="rbx-analysis">${analysisText}</div>`
-        : `<div class="rbx-analysis" style="opacity:0.6;">No analysis</div>`
-    }
+    <div class="rbx-chip">
+      <span>${aiLabel}</span>
+    </div>
 
   </div>
 
