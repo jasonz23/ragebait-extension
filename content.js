@@ -115,7 +115,6 @@ function injectStylesOnce() {
       display: inline-flex;
       flex-direction: column;
       gap: 2px;
-      min-width: 110px;
     }
 
     .rbx-signal .rbx-label { font-size: 10px; }
@@ -132,7 +131,7 @@ function injectStylesOnce() {
       width: 100%;
       height: 9px;
       border-radius: 999px;
-      overflow: hidden;
+      overflow: visible;
       background: rgba(255,255,255,0.10);
       border: 1px solid rgba(255,255,255,0.10);
     }
@@ -428,7 +427,7 @@ function createRatingBadge({
     accNorm === "High"
       ? { label: "Accurate", dot: "#10b981" }
       : accNorm === "Medium"
-        ? { label: "Kinda", dot: "#f59e0b" }
+        ? { label: "Kinda True", dot: "#f59e0b" }
         : { label: "Inaccurate", dot: "#ef4444" };
   let aiLabel = "AI Slop";
   if (aiLevel == 1) {
@@ -451,27 +450,30 @@ function createRatingBadge({
       <span style="font-weight: bold;">Ragebait</span>
     </div>
     <div class="rbx-bar" aria-label="ragebait score bar">
-      <span style="background:${theme.fill}; width:${score}%;"></span>
+      <span style="background: linear-gradient(90deg,rgba(4, 180, 58, 1) 0%, rgba(204, 204, 204, 1) 50%, rgba(200, 40, 30, 1) 100%); width: 100%;"></span>
+      <div style="position: absolute; top: 8px; left: calc(${score}% - 7px);">☝️</div>
     </div>
   </div>
 
-  <div class="rbx-row-bottom">
+  <div class="rbx-row-bottom" style="margin-top: 24px;">
     <div class="rbx-signal">
       <span class="rbx-label">Ragebait Meter</span>
-      <span class="rbx-signal-text">${theme.axis} — ${theme.label}</span>
+      <span class="rbx-signal-text">${theme.label}</span>
     </div>
 
-    <div class="rbx-acc" title="Confidence based on evidence quality / verifiability from text alone">
-      <span class="rbx-dot" style="width:7px;height:7px;background:${
-        accTheme.dot
-      };"></span>
-      <span>Fact Check: ${accTheme.label}</span>
+    <div class="rbx-signal">
+      <span class="rbx-label">Fact Checker</span>
+      <span class="rbx-signal-text">${accTheme.label}</span>
     </div>
 
-    <div class="rbx-chip">
-      <span>${aiLabel}</span>
+    <div class="rbx-signal">
+      <span class="rbx-label">AI Meter</span>
+      <span class="rbx-signal-text">${aiLabel}</span>
     </div>
-
+    
+  </div>
+  <div>
+    <span class="rbx-analysis">${safeAnalysis.length > 80 ? safeAnalysis.slice(0, 80) + "..." : safeAnalysis}</span>
   </div>
 
   <div class="rbx-tooltip">${safeAnalysis}</div>
